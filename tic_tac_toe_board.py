@@ -56,28 +56,30 @@ class TicTacToeBoard:
             "position": self.position
         })
     
-    def save_to_redis(self, redis_client, path, key):
+    async def save_to_redis(self, redis_client, path):
         board_dict = {
             "state": self.state,
             "player_turn": self.player_turn,
             "position": self.position
         }
-        redis_client.json().set(path, "$", board_dict)
+        await redis_client.json().set(path, "$", board_dict)  # Ensure it's an async call
     
     @classmethod
-    def load_from_redis(cls, redis_client, path, key):
-        data = redis_client.json().get(path, "$")
+    async def load_from_redis(cls, redis_client, path):
+        # Ensure that we await the result of this async call
+        data = await redis_client.json().get(path, "$")  # Await the async result
+        
         if not data:
             return None
         if isinstance(data, list) and len(data) > 0:
             data = data[0]
         return cls(**data)
     
-    def reset(self, redis_client, path, key):
+    async def reset(self, redis_client, path):
         self.state = "is playing"
         self.player_turn = "x"
         self.position = ["", "", "", "", "", "", "", "", ""]
-        self.save_to_redis(redis_client, path, key)
+        await self.save_to_redis(redis_client, path)
 
 
 
