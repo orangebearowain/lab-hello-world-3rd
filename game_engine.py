@@ -7,7 +7,6 @@ import sys
 
 CHANNEL_NAME = 'ttt_game_state_changed'
 
-# Handle the current board state, processing moves and checking for win/tie
 async def handle_board_state(redis_client, i_am_playing: str):
     board = await tic_tac_toe_board.TicTacToeBoard.load_from_redis(redis_client, path="game")
     
@@ -32,28 +31,27 @@ async def handle_board_state(redis_client, i_am_playing: str):
             print("Invalid input! Please enter a number between 0 and 8.")
             return
 
-        result = board.make_move(move)  # No 'await' here, since make_move is synchronous
+        result = board.make_move(move)
         print(result)
         
         await board.save_to_redis(redis_client, path="game")
         await redis_client.publish(CHANNEL_NAME, "Board updated")
 
         if board.state == "is finished":
-            if board.check_draw():  # No 'await' here
+            if board.check_draw():
                 print("The game has ended in a tie!")
                 await redis_client.publish(CHANNEL_NAME, "Game has finished - Tie")  # Notify both terminals
                 print(f"Final board:")
                 print(board)
                 sys.exit()
 
-            elif board.check_winner():  # No 'await' here
+            elif board.check_winner():
                 print(f"Player {board.player_turn} wins!")
                 await redis_client.publish(CHANNEL_NAME, f"Game has finished - Player {board.player_turn} wins")  # Notify both terminals
                 print(f"Final board:")
                 print(board)
                 sys.exit()
 
-        # Use await for save_to_redis and publish
     else:
         print(f"\nIt is not your turn yet! Current player is {board.player_turn}.")
         print("\nCurrent board:")

@@ -62,12 +62,11 @@ class TicTacToeBoard:
             "player_turn": self.player_turn,
             "position": self.position
         }
-        await redis_client.json().set(path, "$", board_dict)  # Ensure it's an async call
+        await redis_client.json().set(path, "$", board_dict)
     
     @classmethod
     async def load_from_redis(cls, redis_client, path):
-        # Ensure that we await the result of this async call
-        data = await redis_client.json().get(path, "$")  # Await the async result
+        data = await redis_client.json().get(path, "$")
         
         if not data:
             return None
