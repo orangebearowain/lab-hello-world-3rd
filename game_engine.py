@@ -88,10 +88,10 @@ async def main():
         sys.exit(1) 
 
     r = redis.Redis(
-        host="ai.thewcl.com",        
-        port=6379,                   
-        password="atmega328",
-        db=12,         
+        host=,        
+        port=,                   
+        password=,
+        db= ,         
         decode_responses=True        
     )
 
