@@ -2,8 +2,8 @@ import argparse
 import asyncio
 import redis.asyncio as redis  
 import tic_tac_toe_board
-import sys 
-
+import sys
+import json
 
 CHANNEL_NAME = 'ttt_game_state_changed'
 
@@ -16,13 +16,13 @@ async def handle_board_state(redis_client, i_am_playing: str):
 
     if board.state == "is finished":
         print("\nThe game has already ended!")
-        print(f"Final board:")
-        print(board)
+        print("Final board:")
+        print(json.dumps(board.to_dict(), indent=2))
         sys.exit()
 
     if board.is_my_turn(i_am_playing):
         print("\nCurrent board:")
-        print(board)
+        print(json.dumps(board.to_dict(), indent=2))
         move = input(f"Player {board.player_turn}, enter your move (0-8): ")
         
         try:
@@ -32,31 +32,29 @@ async def handle_board_state(redis_client, i_am_playing: str):
             return
 
         result = board.make_move(move)
-        print(result)
-        
-        await board.save_to_redis(redis_client, path="game")
-        await redis_client.publish(CHANNEL_NAME, "Board updated")
+        print(result["message"])
 
-        if board.state == "is finished":
-            if board.check_draw():
-                print("The game has ended in a tie!")
-                await redis_client.publish(CHANNEL_NAME, "Game has finished - Tie")  # Notify both terminals
-                print(f"Final board:")
-                print(board)
+        if result["success"]:
+            await board.save_to_redis(redis_client, path="game")
+            await redis_client.publish(CHANNEL_NAME, "Board updated")
+
+            print("Updated board:")
+            print(json.dumps(result["board"], indent=2))
+
+            if board.state == "is finished":
+                if board.check_draw():
+                    print("The game has ended in a tie!")
+                    await redis_client.publish(CHANNEL_NAME, "Game has finished - Tie")
+                elif board.check_winner():
+                    print(f"Player {board.player_turn} wins!")
+                    await redis_client.publish(CHANNEL_NAME, f"Game has finished - Player {board.player_turn} wins")
+                print("Final board:")
+                print(json.dumps(board.to_dict(), indent=2))
                 sys.exit()
-
-            elif board.check_winner():
-                print(f"Player {board.player_turn} wins!")
-                await redis_client.publish(CHANNEL_NAME, f"Game has finished - Player {board.player_turn} wins")  # Notify both terminals
-                print(f"Final board:")
-                print(board)
-                sys.exit()
-
     else:
         print(f"\nIt is not your turn yet! Current player is {board.player_turn}.")
         print("\nCurrent board:")
-        print(board)
-
+        print(json.dumps(board.to_dict(), indent=2))
 
 async def listen_for_updates(redis_client, i_am_playing: str):
     pubsub = redis_client.pubsub()
@@ -70,7 +68,6 @@ async def listen_for_updates(redis_client, i_am_playing: str):
         if message['type'] == 'message':
             print(f"\nReceived update: {message['data']}")
             await handle_board_state(redis_client, i_am_playing)
-
 
 async def main():
     parser = argparse.ArgumentParser(description="Tic-Tac-Toe Game")
@@ -88,10 +85,10 @@ async def main():
         sys.exit(1) 
 
     r = redis.Redis(
-        host="",        
-        port=,                   
-        password="",
-        db=,         
+        host="ai.thewcl.com",        
+        port=6379,                   
+        password="atmega328",
+        db=12,         
         decode_responses=True        
     )
 
@@ -99,6 +96,8 @@ async def main():
         board = tic_tac_toe_board.TicTacToeBoard()
         await board.reset(redis_client=r, path="game")
         print("Board has been reset!")
+        print(json.dumps(board.to_dict(), indent=2))
+        await r.publish(CHANNEL_NAME, "Game has been reset.")
         return  
 
     board = await tic_tac_toe_board.TicTacToeBoard.load_from_redis(r, path="game")
@@ -116,13 +115,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-
-
-
-
-
-
-
-

@@ -77,8 +77,13 @@ class TicTacToeBoard:
     async def reset(self, redis_client, path):
         self.state = "is playing"
         self.player_turn = "x"
-        self.position = ["", "", "", "", "", "", "", "", ""]
+        self.position = [""] * 9
         await self.save_to_redis(redis_client, path)
+
+    def to_dict(self):
+        from dataclasses import asdict
+        return asdict(self)
+
 
 
 
