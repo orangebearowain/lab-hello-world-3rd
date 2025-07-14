@@ -1,9 +1,9 @@
 import argparse
 import asyncio
-import redis.asyncio as redis  
+import redis.asyncio as redis
 import tic_tac_toe_board
 import sys
-import json  
+import json
 
 CHANNEL_NAME = 'ttt_game_state_changed'
 
@@ -16,13 +16,14 @@ async def handle_board_state(redis_client, i_am_playing: str):
 
     if board.state == "is finished":
         print("\nThe game has already ended!")
-        print(f"Final board:")
-        print(board.to_dict()) 
-        sys.exit() 
+        print("Final board:")
+        print(json.dumps(board.to_dict(), indent=2))
+        sys.exit()
 
     if board.is_my_turn(i_am_playing):
         print("\nCurrent board:")
-        print(board.to_dict())
+        print(json.dumps(board.to_dict(), indent=2))
+
         move = input(f"Player {board.player_turn}, enter your move (0-8): ")
         
         try:
@@ -32,38 +33,32 @@ async def handle_board_state(redis_client, i_am_playing: str):
             return
 
         result = board.make_move(move)
-
         print(result["message"])
 
         if result["success"]:
-            print("\nUpdated board:")
-            if "board" in result:
-                print(json.dumps(result["board"], indent=2)) 
+            await board.save_to_redis(redis_client, path="game")
+            await redis_client.publish(CHANNEL_NAME, "Board updated")
 
-            await board.save_to_redis(redis_client, path="game")
-            await redis_client.publish(CHANNEL_NAME, "Board updated")
-            await board.save_to_redis(redis_client, path="game")
-            await redis_client.publish(CHANNEL_NAME, "Board updated")
-            
+            print("Updated board:")
+            print(json.dumps(result["board"], indent=2))
+
             if board.state == "is finished":
                 if board.check_draw():
-                    await redis_client.publish(CHANNEL_NAME, "Game has finished - Tie") 
+                    await redis_client.publish(CHANNEL_NAME, "Game has finished - Tie")
                 elif board.check_winner():
-                    await redis_client.publish(CHANNEL_NAME, f"Game has finished - Player {board.player_turn} wins") 
-                print(f"Final board:")
-                print(board.to_dict()) 
+                    await redis_client.publish(CHANNEL_NAME, f"Game has finished - Player {board.player_turn} wins")
+                print("Final board:")
+                print(json.dumps(board.to_dict(), indent=2))
                 sys.exit()
-
     else:
         print(f"\nIt is not your turn yet! Current player is {board.player_turn}.")
         print("\nCurrent board:")
-        print(board.to_dict()) 
-
+        print(json.dumps(board.to_dict(), indent=2))
 
 async def listen_for_updates(redis_client, i_am_playing: str):
     pubsub = redis_client.pubsub()
     await pubsub.subscribe(CHANNEL_NAME)
-    
+
     print(f"Subscribed to {CHANNEL_NAME}, waiting for updates...")
 
     await handle_board_state(redis_client, i_am_playing)
@@ -72,7 +67,6 @@ async def listen_for_updates(redis_client, i_am_playing: str):
         if message['type'] == 'message':
             print(f"\nReceived update: {message['data']}")
             await handle_board_state(redis_client, i_am_playing)
-
 
 async def main():
     parser = argparse.ArgumentParser(description="Tic-Tac-Toe Game")
@@ -87,33 +81,33 @@ async def main():
 
     if not args.player:
         print("Error: --player argument is required.")
-        sys.exit(1) 
+        sys.exit(1)
 
     r = redis.Redis(
-        host="ai.thewcl.com",        
-        port=6379,                   
+        host="ai.thewcl.com",
+        port=6379,
         password="atmega328",
-        db=12,         
-        decode_responses=True        
+        db=12,
+        decode_responses=True
     )
 
     if args.reset:
         board = tic_tac_toe_board.TicTacToeBoard()
         await board.reset(redis_client=r, path="game")
         print("Board has been reset!")
-        return  
+        return
 
     board = await tic_tac_toe_board.TicTacToeBoard.load_from_redis(r, path="game")
-    
+
     if not board:
         print("No saved game found, starting a new game!")
         board = tic_tac_toe_board.TicTacToeBoard()
-        await board.save_to_redis(r, path="game") 
-    
-    board.player_turn = args.player  
-    
+        await board.save_to_redis(r, path="game")
+
+    board.player_turn = args.player
+
     print(f"\nWelcome to Tic-Tac-Toe! You are playing as '{args.player}'\n")
-    
+
     await listen_for_updates(r, args.player)
 
 if __name__ == "__main__":

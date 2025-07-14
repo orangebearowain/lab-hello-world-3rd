@@ -7,7 +7,11 @@ import tic_tac_toe_board
 app = FastAPI()
 
 r = redis.Redis(
-      
+    host="ai.thewcl.com",        
+    port=6379,                   
+    password="atmega328",
+    db=12,         
+    decode_responses=True        
     )
 
 class MoveRequest(BaseModel):
@@ -16,7 +20,6 @@ class MoveRequest(BaseModel):
 
 class ResetRequest(BaseModel):
     reset: bool = True
-
 
 async def load_board_from_redis():
     board = await tic_tac_toe_board.TicTacToeBoard.load_from_redis(r, path="game")
@@ -55,5 +58,3 @@ async def reset_game(request: ResetRequest):
     await board.reset(redis_client=r, path="game")
 
     return {"message": "Game has been reset.", "board": board.to_dict()}
-
-
