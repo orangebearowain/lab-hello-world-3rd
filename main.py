@@ -7,11 +7,7 @@ import tic_tac_toe_board
 app = FastAPI()
 
 r = redis.Redis(
-    host="ai.thewcl.com",        
-    port=6379,                   
-    password="atmega328",
-    db=12,         
-    decode_responses=True        
+      
     )
 
 class MoveRequest(BaseModel):
