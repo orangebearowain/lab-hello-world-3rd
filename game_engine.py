@@ -84,13 +84,7 @@ async def main():
         print("Error: --player argument is required.")
         sys.exit(1) 
 
-    r = redis.Redis(
-        host="ai.thewcl.com",        
-        port=6379,                   
-        password="atmega328",
-        db=12,         
-        decode_responses=True        
-    )
+
 
     if args.reset:
         board = tic_tac_toe_board.TicTacToeBoard()
