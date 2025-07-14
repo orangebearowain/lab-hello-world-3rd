@@ -52,9 +52,10 @@ async def handle_board_state(redis_client, i_am_playing: str):
                 print(json.dumps(board.to_dict(), indent=2))
                 sys.exit()
     else:
-        print(f"\nIt is not your turn yet! Current player is {board.player_turn}.")
+        print(f"\nIt is not your turn yet. Current player is {board.player_turn}.")
         print("\nCurrent board:")
         print(json.dumps(board.to_dict(), indent=2))
+
 
 async def listen_for_updates(redis_client, i_am_playing: str):
     pubsub = redis_client.pubsub()
@@ -84,7 +85,8 @@ async def main():
         print("Error: --player argument is required.")
         sys.exit(1) 
 
-
+    r = redis.Redis(
+      
 
     if args.reset:
         board = tic_tac_toe_board.TicTacToeBoard()
